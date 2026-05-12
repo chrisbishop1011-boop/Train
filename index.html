@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Train">
+<meta name="theme-color" content="#0A0A0A">
+<title>Chris — Training System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0A0A0A; --surface: #111; --border: #1E1E1E;
+    --text: #F0EDE6; --muted: #555; --dim: #2A2A2A;
+    --gold: #C8A96E; --teal: #7EB8A4; --coral: #E07B5A;
+    --green: #5EBF8A; --blue: #6A9FD4; --red: #E05A5A;
+  }
+  html { background: var(--bg); }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 85px; }
+
+.header { position: sticky; top: 0; z-index: 100; background: rgba(10,10,10,0.97); backdrop-filter: blur(16px); border-bottom: 1px solid var(–border); padding: 14px 20px 12px; display: flex; justify-content: space-between; align-items: flex-end; }
+.header-left .label { font-family: ‘DM Mono’, monospace; font-size: 9px; letter-spacing: 0.2em; color: var(–muted); text-transform: uppercase; margin-bottom: 2px; }
+.header-title { font-family: ‘DM Serif Display’, serif; font-size: 20px; }
+.streak-badge { text-align: right; }
+.streak-num { font-family: ‘DM Serif Display’, serif; font-size: 28px; color: var(–gold); line-height: 1; }
+.streak-label { font-size: 9px; color: var(–muted); font-family: ‘DM Mono’, monospace; letter-spacing: 0.1em; text-transform: uppercase; }
+
+.phase-tabs { display: flex; overflow-x: auto; border-bottom: 1px solid var(–border); scrollbar-width: none; background: var(–bg); }
+.phase-tabs::-webkit-scrollbar { display: none; }
+.phase-tab { flex: 0 0 auto; padding: 13px 16px; border: none; background: transparent; color: var(–muted); cursor: pointer; border-bottom: 2px solid transparent; font-family: ‘DM Sans’, sans-serif; font-size: 12px; font-weight: 500; white-space: nowrap; transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
+.phase-tab.active { color: var(–phase-color); border-bottom-color: var(–phase-color); }
+
+.content { padding: 16px 20px; }
+.card { background: var(–surface); border: 1px solid var(–border); border-radius: 14px; padding: 16px 18px; margin-bottom: 12px; }
+.card-label { font-family: ‘DM Mono’, monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(–muted); margin-bottom: 12px; }
+
+.phase-tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; font-family: ‘DM Mono’, monospace; margin-bottom: 8px; }
+.phase-name { font-family: ‘DM Serif Display’, serif; font-size: 26px; margin-bottom: 4px; }
+.phase-focus { font-size: 13px; color: #888; font-style: italic; line-height: 1.5; }
+
+/* Session selector */
+.session-selector { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; scrollbar-width: none; }
+.session-selector::-webkit-scrollbar { display: none; }
+.session-btn { flex: 0 0 auto; padding: 10px 16px; border-radius: 10px; border: 1px solid var(–border); background: transparent; color: var(–muted); font-size: 12px; font-family: ‘DM Sans’, sans-serif; font-weight: 500; cursor: pointer; transition: all 0.2s; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+.session-btn.active { background: var(–surface); color: var(–text); border-color: var(–phase-color); }
+
+/* Exercises */
+.exercise-list { display: flex; flex-direction: column; gap: 2px; }
+.exercise-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px; cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent; }
+.exercise-row:nth-child(odd) { background: #0F0F0F; }
+.exercise-row:nth-child(even) { background: #111; }
+.exercise-row.done { opacity: 0.45; }
+.exercise-row.done .ex-name { text-decoration: line-through; }
+.tick-box { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(–dim); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.ex-body { flex: 1; min-width: 0; }
+.ex-name { font-size: 14px; color: var(–text); margin-bottom: 3px; font-weight: 500; }
+.ex-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.ex-sets { font-family: ‘DM Mono’, monospace; font-size: 11px; color: var(–phase-color); }
+.ex-note { font-size: 11px; color: var(–muted); font-style: italic; }
+
+/* Run session */
+.run-card { background: #0A1A12; border: 1px solid var(–green)30; border-radius: 14px; padding: 20px; margin-bottom: 12px; }
+.run-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.run-title { font-family: ‘DM Serif Display’, serif; font-size: 24px; color: var(–green); }
+.run-sub { font-size: 13px; color: #888; font-style: italic; margin-top: 2px; }
+.run-target { text-align: right; }
+.run-km { font-family: ‘DM Serif Display’, serif; font-size: 32px; color: var(–green); line-height: 1; }
+.run-km-label { font-size: 10px; color: var(–muted); font-family: ‘DM Mono’, monospace; }
+.run-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.run-stat { background: #0D0D0D; border-radius: 8px; padding: 10px; text-align: center; }
+.run-stat-val { font-family: ‘DM Mono’, monospace; font-size: 14px; color: var(–text); font-weight: 600; }
+.run-stat-label { font-size: 10px; color: var(–muted); margin-top: 2px; }
+.run-steps { display: flex; flex-direction: column; gap: 8px; }
+.run-step { display: flex; gap: 12px; align-items: flex-start; }
+.run-step-num { font-family: ‘DM Mono’, monospace; font-size: 11px; color: var(–green); min-width: 20px; padding-top: 2px; }
+.run-step-text { font-size: 13px; color: #CCC; line-height: 1.5; }
+.run-log-form { display: flex; gap: 8px; margin-top: 14px; }
+.run-input { flex: 1; background: #0D0D0D; border: 1px solid var(–border); border-radius: 10px; padding: 10px 14px; color: var(–text); font-family: ‘DM Mono’, monospace; font-size: 14px; outline: none; }
+.run-input:focus { border-color: var(–green); }
+.run-submit { padding: 10px 16px; border-radius: 10px; border: none; background: var(–green); color: #000; font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+
+/* Complete btn */
+.complete-btn { width: 100%; padding: 16px; border-radius: 12px; border: none; font-family: ‘DM Serif Display’, serif; font-size: 18px; cursor: pointer; transition: all 0.2s; margin-bottom: 12px; -webkit-tap-highlight-color: transparent; }
+.complete-btn.ready { background: var(–phase-color); color: #000; }
+.complete-btn.not-ready { background: var(–dim); color: var(–muted); cursor: default; }
+.complete-btn.done-today { background: #1A2A1E; border: 1px solid var(–green); color: var(–green); cursor: default; }
+
+/* Progress bar */
+.progress-wrap { margin-bottom: 12px; }
+.progress-label { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.progress-label span { font-family: ‘DM Mono’, monospace; font-size: 11px; color: var(–muted); }
+.progress-label strong { font-family: ‘DM Mono’, monospace; font-size: 11px; color: var(–phase-color); }
+.progress-bar { height: 4px; background: var(–dim); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
+
+/* Log */
+.session-entry { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #0F0F0F; border-radius: 8px; margin-bottom: 6px; }
+.session-date { font-family: ‘DM Mono’, monospace; font-size: 11px; color: #888; }
+.session-tag { font-size: 10px; padding: 3px 8px; border-radius: 8px; font-weight: 600; }
+.empty-state { font-size: 13px; color: var(–muted); font-style: italic; text-align: center; padding: 16px 0; }
+
+/* Weight */
+.weigh-form { display: flex; gap: 8px; margin-bottom: 12px; }
+.weigh-input { flex: 1; background: #0F0F0F; border: 1px solid var(–border); border-radius: 10px; padding: 12px 14px; color: var(–text); font-family: ‘DM Mono’, monospace; font-size: 15px; outline: none; }
+.weigh-input:focus { border-color: var(–gold); }
+.weigh-submit { padding: 12px 20px; border-radius: 10px; border: none; background: var(–gold); color: #000; font-weight: 700; font-size: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.weigh-entry { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #0F0F0F; border-radius: 8px; margin-bottom: 6px; }
+.weigh-kg { font-family: ‘DM Serif Display’, serif; font-size: 20px; }
+.weigh-date { font-family: ‘DM Mono’, monospace; font-size: 11px; color: var(–muted); }
+.weigh-delta { font-family: ‘DM Mono’, monospace; font-size: 12px; padding: 2px 7px; border-radius: 6px; }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.stat-box { background: var(–surface); border: 1px solid var(–border); border-radius: 12px; padding: 14px; text-align: center; }
+.stat-num { font-family: ‘DM Serif Display’, serif; font-size: 28px; line-height: 1; margin-bottom: 4px; }
+.stat-label { font-family: ‘DM Mono’, monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(–muted); }
+
+/* Bullets */
+.bullet-list { display: flex; flex-direction: column; gap: 10px; }
+.bullet-item { display: flex; gap: 10px; align-items: flex-start; }
+.bullet-dot { width: 4px; height: 4px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; }
+.bullet-text { font-size: 13px; color: #AAA; line-height: 1.6; }
+
+.failsafe { background: #0F0F0F; border-radius: 12px; padding: 18px; border-left: 3px solid var(–phase-color); margin-bottom: 12px; }
+.failsafe-label { font-family: ‘DM Mono’, monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+.failsafe-text { font-size: 13px; color: #BBB; line-height: 1.7; font-style: italic; }
+
+/* Milestones */
+.milestone-item { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(–border); align-items: flex-start; }
+.milestone-item:last-child { border-bottom: none; }
+.milestone-period { font-family: ‘DM Mono’, monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(–gold); min-width: 72px; padding-top: 2px; }
+.milestone-text { font-size: 13px; color: #CCC; line-height: 1.5; }
+
+.golden-rule { background: var(–surface); border: 1px solid #2A2A2A; border-radius: 12px; padding: 22px; margin-top: 12px; text-align: center; }
+.golden-rule-label { font-family: ‘DM Mono’, monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(–muted); margin-bottom: 10px; }
+.golden-rule-text { font-family: ‘DM Serif Display’, serif; font-size: 17px; color: var(–text); line-height: 1.7; }
+
+/* Nav */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,10,10,0.97); backdrop-filter: blur(16px); border-top: 1px solid var(–border); display: flex; padding: 6px 0 max(6px, env(safe-area-inset-bottom)); }
+.nav-btn { flex: 1; padding: 8px 4px; border: none; background: transparent; color: var(–muted); font-size: 10px; font-family: ‘DM Sans’, sans-serif; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: color 0.2s; -webkit-tap-highlight-color: transparent; }
+.nav-btn.active { color: var(–gold); }
+.nav-btn svg { width: 20px; height: 20px; }
+
+section { display: none; }
+section.active { display: block; }
+
+.run-history-entry { display: flex; justify-content: space-between; padding: 10px 14px; background: #0F0F0F; border-radius: 8px; margin-bottom: 6px; }
+.run-history-time { font-family: ‘DM Mono’, monospace; font-size: 14px; color: var(–green); font-weight: 600; }
+.run-history-meta { font-size: 11px; color: var(–muted); font-family: ‘DM Mono’, monospace; }
+</style>
+
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="label">Chris · Training System</div>
+    <div class="header-title">Recomposition</div>
+  </div>
+  <div class="streak-badge">
+    <div class="streak-num" id="streakNum">0</div>
+    <div class="streak-label">week streak</div>
+  </div>
+</div>
+
+<div class="phase-tabs" id="phaseTabs">
+  <button class="phase-tab active" style="--phase-color:#C8A96E" onclick="setPhase(0,this)">1 · Foundation</button>
+  <button class="phase-tab" style="--phase-color:#7EB8A4" onclick="setPhase(1,this)">2 · Development</button>
+  <button class="phase-tab" style="--phase-color:#E07B5A" onclick="setPhase(2,this)">3 · Performance</button>
+  <button class="phase-tab" style="--phase-color:#8B7EC8" onclick="setPhase(3,this)">4 · Mastery</button>
+</div>
+
+<section class="active" id="workoutSection">
+  <div class="content" id="phaseContent"></div>
+</section>
+
+<section id="logSection">
+  <div class="content">
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="card">
+      <div class="card-label">Weekly Weigh-In (kg)</div>
+      <div class="weigh-form">
+        <input class="weigh-input" type="number" step="0.1" placeholder="e.g. 82.4" id="weighInput">
+        <button class="weigh-submit" onclick="logWeight()">Log</button>
+      </div>
+      <div id="weighLog"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Session History</div>
+      <div id="sessionLog"></div>
+    </div>
+  </div>
+</section>
+
+<section id="milestonesSection">
+  <div class="content">
+    <div class="card">
+      <div class="card-label">12-Month Roadmap</div>
+      <div id="milestoneList"></div>
+    </div>
+    <div class="golden-rule">
+      <div class="golden-rule-label">The Golden Rule</div>
+      <div class="golden-rule-text">"Never miss twice.<br>One missed session is rest.<br>Two is a habit forming."</div>
+    </div>
+  </div>
+</section>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="navWorkout" onclick="showSection('workout')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+    Train
+  </button>
+  <button class="nav-btn" id="navLog" onclick="showSection('log')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+    Log
+  </button>
+  <button class="nav-btn" id="navMilestones" onclick="showSection('milestones')">
+    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></svg>
+    Goals
+  </button>
+</nav>
+
+<script>
+const PHASES = [
+  {
+    name:"Foundation", months:"Months 1–3", color:"#C8A96E",
+    focus:"Build the habit. Master movements. Establish your three training days.",
+    monthlyGoal:"Complete all 3 sessions/week. Zero missed weeks.",
+    quarterly:"Visible energy shift. First body fat loss. Running 5k without stopping.",
+    schedule:"Monday · Wednesday · Friday",
+    workouts:[
+      {
+        name:"Monday — Push (Chest, Shoulders, Triceps)",
+        tag:"push",
+        exercises:[
+          {name:"Push-Ups",sets:"4 × 10–15",note:"Chest focus — slow down"},
+          {name:"Wide Push-Ups",sets:"3 × 10",note:"Outer chest emphasis"},
+          {name:"Pike Push-Ups",sets:"3 × 8–10",note:"Shoulders"},
+          {name:"Diamond Push-Ups",sets:"3 × 8–10",note:"Triceps isolation"},
+          {name:"Tricep Dips",sets:"3 × 10–12",note:"Bench or step"},
+          {name:"Plank",sets:"3 × 30–45 sec",note:"Core finisher"},
+          {name:"Mountain Climbers",sets:"3 × 30 sec",note:"Conditioning"},
+        ]
+      },
+      {
+        name:"Wednesday — 5k Easy Run",
+        tag:"run",
+        isRun:true,
+      },
+      {
+        name:"Friday — Pull & Legs (Back, Biceps, Legs)",
+        tag:"pull",
+        exercises:[
+          {name:"Inverted Rows",sets:"4 × 8–12",note:"Park bar — bicep + back"},
+          {name:"Chin-Up Holds",sets:"3 × max hang",note:"Jump up, lower slowly"},
+          {name:"Bodyweight Curls (towel)",sets:"3 × 10",note:"Bicep focus"},
+          {name:"Bodyweight Squats",sets:"4 × 15",note:"Full depth"},
+          {name:"Reverse Lunges",sets:"3 × 10 each",note:"Slow down"},
+          {name:"Glute Bridges",sets:"3 × 15",note:"Hold at top"},
+          {name:"Superman Hold",sets:"3 × 10",note:"Back strength"},
+        ]
+      },
+    ],
+    nutrition:["Protein at every meal — eggs, chicken, fish, Greek yogurt","No skipping breakfast","Cut sugary drinks entirely","Cook at home 4+ nights/week"],
+    weekly:["All 3 sessions hit: Mon, Wed, Fri","Log sessions — even a tick counts","Weigh in Sunday morning"],
+    failsafe:"Miss a session? Move it to the next day. Never let two consecutive days pass without doing something."
+  },
+  {
+    name:"Development", months:"Months 4–6", color:"#7EB8A4",
+    focus:"Increase intensity. Add volume. Arms and chest start to show.",
+    monthlyGoal:"All 3 sessions/week. Progression in every exercise.",
+    quarterly:"Muscle definition visible. 5k time improving. Diet habitual.",
+    schedule:"Monday · Wednesday · Friday",
+    workouts:[
+      {
+        name:"Monday — Push Advanced",
+        tag:"push",
+        exercises:[
+          {name:"Archer Push-Ups",sets:"4 × 6–8 each",note:"Chest + shoulder isolation"},
+          {name:"Decline Push-Ups",sets:"4 × 10–12",note:"Upper chest — feet elevated"},
+          {name:"Pike Push-Ups",sets:"4 × 10",note:"Shoulder mass builder"},
+          {name:"Diamond Push-Ups",sets:"4 × 10–12",note:"Triceps — pause at bottom"},
+          {name:"Tricep Dips",sets:"4 × 12–15",note:"Add a pause at bottom"},
+          {name:"Hollow Body Hold",sets:"3 × 20 sec",note:"Core mastery"},
+          {name:"Plank to Down-Dog",sets:"3 × 10",note:"Flowing core work"},
+        ]
+      },
+      {
+        name:"Wednesday — 5k Easy Run",
+        tag:"run",
+        isRun:true,
+      },
+      {
+        name:"Friday — Pull & Legs Advanced",
+        tag:"pull",
+        exercises:[
+          {name:"Pull-Ups / Assisted",sets:"5 × max",note:"Key movement — find a bar"},
+          {name:"Inverted Rows",sets:"4 × 10–12",note:"Chest to bar"},
+          {name:"Bodyweight Curls (towel/band)",sets:"4 × 12",note:"Squeeze at top"},
+          {name:"Bulgarian Split Squats",sets:"4 × 8 each",note:"Rear foot elevated"},
+          {name:"Jump Squats",sets:"3 × 10",note:"Explosive power"},
+          {name:"Nordic Curl Negatives",sets:"3 × 5",note:"Hamstring strength"},
+          {name:"Single Leg Glute Bridge",sets:"3 × 12 each",note:"Full extension"},
+        ]
+      },
+    ],
+    nutrition:["Track protein loosely — ~0.8g per lb bodyweight","Meal prep Sundays","Reduce alcohol to 1–2 occasions/week","Protein shake on training days if needed"],
+    weekly:["Log weight + push-up count","One active recovery walk on rest day","Rate energy 1–5 after each session"],
+    failsafe:"If work is brutal: 20 push-ups and 20 squats before bed. Non-negotiable minimum."
+  },
+  {
+    name:"Performance", months:"Months 7–9", color:"#E07B5A",
+    focus:"Push your ceiling. Chest and arms clearly defined. 5k time dropping.",
+    monthlyGoal:"All 3 sessions/week. One new personal best per session.",
+    quarterly:"Body recomposition clearly visible. 5k under 25 minutes. Strength at elite bodyweight level.",
+    schedule:"Monday · Wednesday · Friday",
+    workouts:[
+      {
+        name:"Monday — Upper Power",
+        tag:"push",
+        exercises:[
+          {name:"Pseudo Planche Push-Ups",sets:"4 × 6–8",note:"Hands by hips — chest + triceps"},
+          {name:"Typewriter Push-Ups",sets:"3 × 5 each",note:"Lateral chest isolation"},
+          {name:"Decline Pike Push-Ups",sets:"4 × 8–10",note:"Shoulder mass"},
+          {name:"Close-Grip Explosive Push-Ups",sets:"3 × 8",note:"Tricep power"},
+          {name:"Dips",sets:"4 × 12–15",note:"Park parallel bars — full range"},
+          {name:"L-Sit Hold",sets:"3 × 15 sec",note:"Bars or floor"},
+          {name:"Hollow Body",sets:"3 × 25 sec",note:"Core strength"},
+        ]
+      },
+      {
+        name:"Wednesday — 5k Run (Push Pace)",
+        tag:"run",
+        isRun:true,
+        pushPace:true,
+      },
+      {
+        name:"Friday — Pull & Legs Power",
+        tag:"pull",
+        exercises:[
+          {name:"Pull-Ups",sets:"5 × max",note:"Full dead hang — no kipping"},
+          {name:"Commando Pull-Ups",sets:"3 × 6 each",note:"Bicep peak builder"},
+          {name:"Archer Rows",sets:"3 × 8 each",note:"One-arm progression"},
+          {name:"Pistol Squat Progressions",sets:"4 × 5 each",note:"Assisted if needed"},
+          {name:"Plyometric Lunges",sets:"3 × 10 each",note:"Explosive"},
+          {name:"Tuck Front Lever",sets:"3 × 10 sec",note:"Park bar"},
+          {name:"Sprint Finisher",sets:"6 × 20s on/40s off",note:"After main sets"},
+        ]
+      },
+    ],
+    nutrition:["Calorie cycling: higher on training days","Sleep as nutrition — 7–8hrs minimum","Reduce ultra-processed food to rare exceptions","Consider 16:8 IF if fat loss stalls"],
+    weekly:["Bodyweight + waist measurement monthly","Review last session — always beat it","One mobility session/week (20 min)"],
+    failsafe:"If slipping, go back to Phase 1 Monday session for one week. Reset, don't quit."
+  },
+  {
+    name:"Mastery", months:"Months 10–12", color:"#8B7EC8",
+    focus:"You own the system. Design your sessions. Maintain forever.",
+    monthlyGoal:"Design your own sessions. You are now the programme.",
+    quarterly:"A body you're proud of. 5k a comfortable baseline. The system runs itself.",
+    schedule:"Monday · Wednesday · Friday",
+    workouts:[
+      {
+        name:"Monday — Your Push Session",
+        tag:"push",
+        exercises:[
+          {name:"Warm-up (your choice)",sets:"5 min",note:"You know your body"},
+          {name:"2 Chest movements",sets:"4 sets each",note:"From your repertoire"},
+          {name:"2 Shoulder movements",sets:"3 sets each",note:"Pike variations"},
+          {name:"2 Tricep movements",sets:"3 sets each",note:"Dips, diamond, close-grip"},
+          {name:"Core finisher",sets:"3 sets",note:"L-sit, hollow body, plank"},
+        ]
+      },
+      {
+        name:"Wednesday — 5k Run",
+        tag:"run",
+        isRun:true,
+      },
+      {
+        name:"Friday — Your Pull Session",
+        tag:"pull",
+        exercises:[
+          {name:"Warm-up (your choice)",sets:"5 min",note:"You know your body"},
+          {name:"2 Pull movements",sets:"5 sets each",note:"Pull-ups, rows, front lever"},
+          {name:"2 Bicep movements",sets:"3 sets each",note:"Commando, archer, curls"},
+          {name:"2 Leg movements",sets:"4 sets each",note:"Include one explosive"},
+          {name:"Conditioning finisher",sets:"5–10 min",note:"Sprints or HIIT"},
+        ]
+      },
+    ],
+    nutrition:["Nutrition is habitual — no tracking needed","Seasonal eating: fresh and real","Treat meals are planned, not reactive","Annual bloodwork to review health markers"],
+    weekly:["Monthly photo check-in vs Month 1","Quarterly: set one new challenge","Share progress — accountability compounds"],
+    failsafe:"Life will always disrupt. The rule forever: never miss twice."
+  }
+];
+
+const MILESTONES = [
+  {period:"Week 1", text:"Complete all 3 sessions. Log them. That's it."},
+  {period:"Week 4", text:"First full month. 12 sessions minimum. 5k without stopping."},
+  {period:"Month 3", text:"Visible energy shift. First body composition change. 5k feeling easier."},
+  {period:"Month 6", text:"Chest and arms defining. Diet habitual. 5k time dropping."},
+  {period:"Month 9", text:"Advanced movements unlocked. Recomposition clear to others. 5k under 25 min."},
+  {period:"Month 12", text:"You've built a body and a system. Now you own it forever."},
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+let currentPhase = 0;
+let currentWorkout = 0;
+let ticks = load('ticks2', {});
+let sessions = load('sessions2', []);
+let weights = load('weights2', []);
+let runs = load('runs2', []);
+
+function todayStr(){return new Date().toISOString().slice(0,10);}
+function formatDate(s){return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});}
+
+// ── STREAK ────────────────────────────────────────────────────────────────────
+function calcStreak(){
+  if(!sessions.length && !runs.length) return 0;
+  const all = [...sessions, ...runs.map(r=>({date:r.date}))];
+  const weekMap = {};
+  all.forEach(s=>{
+    const d=new Date(s.date); const day=d.getDay();
+    const mon=new Date(d); mon.setDate(d.getDate()-((day+6)%7));
+    const wk=mon.toISOString().slice(0,10);
+    weekMap[wk]=(weekMap[wk]||0)+1;
+  });
+  let streak=0;
+  const now=new Date(); const nowDay=now.getDay();
+  const thisMon=new Date(now); thisMon.setDate(now.getDate()-((nowDay+6)%7));
+  let checkDate=new Date(thisMon);
+  for(let i=0;i<52;i++){
+    const wk=checkDate.toISOString().slice(0,10);
+    if(weekMap[wk]>=1){streak++;}
+    else if(i>0) break;
+    checkDate.setDate(checkDate.getDate()-7);
+  }
+  return streak;
+}
+
+function updateStreak(){document.getElementById('streakNum').textContent=calcStreak();}
+
+// ── TICKS ─────────────────────────────────────────────────────────────────────
+function tickKey(p,w,i){return `${p}-${w}-${i}`;}
+function toggleTick(p,w,i){ticks[tickKey(p,w,i)]=!ticks[tickKey(p,w,i)];save('ticks2',ticks);renderPhase();}
+function getProgress(p,w){
+  const exs=PHASES[p].workouts[w].exercises||[];
+  const total=exs.length; let done=0;
+  for(let i=0;i<total;i++){if(ticks[tickKey(p,w,i)])done++;}
+  return{done,total};
+}
+function clearTicks(p,w){
+  const total=(PHASES[p].workouts[w].exercises||[]).length;
+  for(let i=0;i<total;i++) delete ticks[tickKey(p,w,i)];
+  save('ticks2',ticks);
+}
+
+// ── COMPLETE SESSION ──────────────────────────────────────────────────────────
+function completeSession(){
+  const p=currentPhase,w=currentWorkout;
+  const prog=getProgress(p,w);
+  if(prog.done<prog.total) return;
+  const today=todayStr();
+  if(sessions.find(s=>s.date===today&&s.phase===p&&s.workout===w)) return;
+  const wkObj=PHASES[p].workouts[w];
+  sessions.unshift({date:today,phase:p,workout:w,label:`Phase ${p+1} · ${wkObj.name.split('—')[1]?.trim()||wkObj.name}`});
+  save('sessions2',sessions);
+  clearTicks(p,w);
+  updateStreak();
+  renderPhase();
+}
+
+function isSessionDoneToday(){
+  return !!sessions.find(s=>s.date===todayStr()&&s.phase===currentPhase&&s.workout===currentWorkout);
+}
+
+// ── LOG RUN ───────────────────────────────────────────────────────────────────
+function logRun(){
+  const mins=parseFloat(document.getElementById('runMins').value);
+  if(isNaN(mins)||mins<10||mins>120) return;
+  const today=todayStr();
+  runs.unshift({date:today,mins,phase:currentPhase});
+  save('runs2',runs);
+  document.getElementById('runMins').value='';
+  updateStreak();
+  renderPhase();
+}
+
+function isRunDoneToday(){return !!runs.find(r=>r.date===todayStr());}
+
+// ── RENDER RUN SESSION ────────────────────────────────────────────────────────
+function renderRunSession(workout){
+  const p=PHASES[currentPhase];
+  const isPushPace=workout.pushPace;
+  const doneTodayRun=isRunDoneToday();
+  const recentRuns=runs.slice(0,5);
+  const bestRun=runs.length?Math.min(...runs.map(r=>r.mins)):null;
+  const lastRun=runs.length?runs[0].mins:null;
+
+  return `
+    <button class="complete-btn ${doneTodayRun?'done-today':'ready'}" style="margin-bottom:12px">
+      ${doneTodayRun?'✓ Run logged today':'Log this run ↓'}
+    </button>
+
+    <div class="run-card">
+      <div class="run-header">
+        <div>
+          <div class="run-title">5k Run</div>
+          <div class="run-sub">${isPushPace?'Push your pace — try to beat your last time':'Easy pace — conversational, comfortable'}</div>
+        </div>
+        <div class="run-target">
+          <div class="run-km">5</div>
+          <div class="run-km-label">km</div>
+        </div>
+      </div>
+
+      <div class="run-stats">
+        <div class="run-stat">
+          <div class="run-stat-val" style="color:var(--green)">${bestRun?bestRun+'min':'—'}</div>
+          <div class="run-stat-label">Best Time</div>
+        </div>
+        <div class="run-stat">
+          <div class="run-stat-val" style="color:var(--teal)">${lastRun?lastRun+'min':'—'}</div>
+          <div class="run-stat-label">Last Run</div>
+        </div>
+        <div class="run-stat">
+          <div class="run-stat-val">${runs.length}</div>
+          <div class="run-stat-label">Total Runs</div>
+        </div>
+      </div>
+
+      <div class="run-steps">
+        <div class="run-step"><div class="run-step-num">1</div><div class="run-step-text">5 min easy walk warmup — get the blood moving</div></div>
+        <div class="run-step"><div class="run-step-num">2</div><div class="run-step-text">${isPushPace?'Run 5k — push your pace from the start, aim to beat last time':'Run 5k at easy pace — you should be able to hold a conversation'}</div></div>
+        <div class="run-step"><div class="run-step-num">3</div><div class="run-step-text">5 min easy walk cooldown — do not skip this</div></div>
+        <div class="run-step"><div class="run-step-num">4</div><div class="run-step-text">Log your time below — track the improvement</div></div>
+      </div>
+
+      <div class="run-log-form">
+        <input class="run-input" type="number" step="0.5" placeholder="Time in mins" id="runMins" min="10" max="120">
+        <button class="run-submit" onclick="logRun()">Log Run</button>
+      </div>
+    </div>
+
+    ${recentRuns.length?`
+      <div class="card">
+        <div class="card-label">Run History</div>
+        ${recentRuns.map((r,i)=>{
+          const delta=i<recentRuns.length-1?((r.mins-recentRuns[i+1].mins).toFixed(1)):'—';
+          const deltaColor=delta!=='—'&&delta<0?'var(--green)':delta>0?'var(--coral)':'var(--muted)';
+          return `<div class="run-history-entry">
+            <div>
+              <div class="run-history-time">${r.mins} min</div>
+              <div class="run-history-meta">${formatDate(r.date)}</div>
+            </div>
+            ${delta!=='—'?`<div class="weigh-delta" style="background:${delta<0?'#1A2A1E':delta>0?'#2A1A1A':'var(--dim)'};color:${deltaColor}">${delta>0?'+':''}${delta}min</div>`:''}
+          </div>`;
+        }).join('')}
+      </div>` : ''}
+  `;
+}
+
+// ── RENDER PHASE ──────────────────────────────────────────────────────────────
+function renderPhase(){
+  const p=PHASES[currentPhase];
+  const workout=p.workouts[currentWorkout];
+  const isRun=workout.isRun;
+
+  let mainContent='';
+
+  if(isRun){
+    mainContent=renderRunSession(workout);
+  } else {
+    const prog=getProgress(currentPhase,currentWorkout);
+    const pct=prog.total?Math.round((prog.done/prog.total)*100):0;
+    const allDone=prog.done===prog.total;
+    const doneTodayAlready=isSessionDoneToday();
+
+    let btnState='not-ready',btnText=`Complete Session (${prog.done}/${prog.total})`;
+    if(doneTodayAlready){btnState='done-today';btnText='✓ Session logged today';}
+    else if(allDone){btnState='ready';btnText='Log Session Complete ✓';}
+
+    const exercises=(workout.exercises||[]).map((ex,i)=>{
+      const checked=!!ticks[tickKey(currentPhase,currentWorkout,i)];
+      return `<div class="exercise-row ${checked?'done':''}" onclick="toggleTick(${currentPhase},${currentWorkout},${i})">
+        <div class="tick-box" style="${checked?'background:'+p.color+';border-color:'+p.color:'border-color:'+p.color+'60'}">
+          ${checked?'<span style="font-size:13px;color:#000;font-weight:700">✓</span>':''}
+        </div>
+        <div class="ex-body">
+          <div class="ex-name">${ex.name}</div>
+          <div class="ex-meta">
+            <span class="ex-sets" style="color:${p.color}">${ex.sets}</span>
+            <span class="ex-note">${ex.note}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    mainContent=`
+      <button class="complete-btn ${btnState}" onclick="completeSession()">${btnText}</button>
+      <div class="progress-wrap">
+        <div class="progress-label"><span>Exercises</span><strong>${prog.done} / ${prog.total}</strong></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${p.color}"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Exercises</div>
+        <div class="exercise-list">${exercises}</div>
+      </div>
+    `;
+  }
+
+  // Session selector
+  const sessionBtns=p.workouts.map((w,i)=>`
+    <button class="session-btn ${i===currentWorkout?'active':''}" 
+      style="${i===currentWorkout?'--phase-color:'+p.color:''}"
+      onclick="setWorkout(${i})">
+      ${w.tag==='run'?'🏃 Wed Run':w.tag==='push'?'💪 Mon Push':'🦵 Fri Pull'}
+    </button>`).join('');
+
+  document.getElementById('phaseContent').innerHTML=`
+    <div class="card" style="border-color:${p.color}30;margin-bottom:12px">
+      <div class="phase-tag" style="color:${p.color};background:${p.color}15;border:1px solid ${p.color}25">${p.months}</div>
+      <div class="phase-name">${p.name}</div>
+      <div class="phase-focus">${p.focus}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:${p.color};margin-top:8px;letter-spacing:0.1em">${p.schedule}</div>
+    </div>
+
+    <div class="session-selector">${sessionBtns}</div>
+
+    <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:14px;color:#AAA">${workout.name}</div>
+
+    ${mainContent}
+
+    <div class="card">
+      <div class="card-label">Weekly Habits</div>
+      <div class="bullet-list">
+        ${p.weekly.map(w=>`
+          <div class="bullet-item">
+            <div class="bullet-dot" style="background:${p.color}"></div>
+            <div class="bullet-text">${w}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="failsafe" style="border-color:${p.color}">
+      <div class="failsafe-label" style="color:${p.color}">Failsafe</div>
+      <div class="failsafe-text">${p.failsafe}</div>
+    </div>
+  `;
+}
+
+// ── LOG SECTION ───────────────────────────────────────────────────────────────
+function logWeight(){
+  const v=parseFloat(document.getElementById('weighInput').value);
+  if(isNaN(v)||v<30||v>300) return;
+  weights.unshift({date:todayStr(),kg:v});
+  save('weights2',weights);
+  document.getElementById('weighInput').value='';
+  renderLog();
+}
+
+function renderLog(){
+  const totalS=sessions.length+runs.length;
+  const thisMonth=[...sessions,...runs].filter(s=>s.date.slice(0,7)===todayStr().slice(0,7)).length;
+  const startW=weights.length?weights[weights.length-1].kg:null;
+  const curW=weights.length?weights[0].kg:null;
+  const wc=(startW&&curW)?(curW-startW).toFixed(1):'—';
+  const bestRun=runs.length?Math.min(...runs.map(r=>r.mins))+'min':'—';
+
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-box"><div class="stat-num" style="color:var(--gold)">${totalS}</div><div class="stat-label">Total Sessions</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--teal)">${thisMonth}</div><div class="stat-label">This Month</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--green);font-size:22px">${bestRun}</div><div class="stat-label">Best 5k</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:${wc!=='—'&&wc<=0?'var(--green)':'var(--coral)'};font-size:22px">${wc!=='—'?(wc>0?'+':'')+wc+'kg':'—'}</div><div class="stat-label">Weight Change</div></div>
+  `;
+
+  const weighEl=document.getElementById('weighLog');
+  if(!weights.length){weighEl.innerHTML='<div class="empty-state">No weigh-ins yet.</div>';}
+  else{weighEl.innerHTML=weights.slice(0,6).map((w,i)=>{
+    const delta=i<weights.length-1?(w.kg-weights[i+1].kg).toFixed(1):'';
+    const cls=delta&&delta<0?'#1A2A1E':delta&&delta>0?'#2A1A1A':'var(--dim)';
+    const dc=delta&&delta<0?'var(--green)':delta&&delta>0?'var(--coral)':'var(--muted)';
+    return `<div class="weigh-entry">
+      <div><div class="weigh-kg">${w.kg} <span style="font-size:14px;color:var(--muted)">kg</span></div><div class="weigh-date">${formatDate(w.date)}</div></div>
+      ${delta?`<div class="weigh-delta" style="background:${cls};color:${dc}">${delta>0?'+':''}${delta}</div>`:''}
+    </div>`;
+  }).join('');}
+
+  const logEl=document.getElementById('sessionLog');
+  const allSessions=[
+    ...sessions.map(s=>({...s,type:'strength'})),
+    ...runs.map(r=>({date:r.date,label:`5k Run · ${r.mins}min`,type:'run',color:'var(--green)'}))
+  ].sort((a,b)=>b.date.localeCompare(a.date));
+
+  if(!allSessions.length){logEl.innerHTML='<div class="empty-state">No sessions logged yet.</div>';}
+  else{logEl.innerHTML=allSessions.slice(0,15).map(s=>{
+    const c=s.type==='run'?'var(--green)':PHASES[s.phase||0].color;
+    return `<div class="session-entry">
+      <div><div style="font-size:14px;color:var(--text);margin-bottom:2px">${s.label}</div><div class="session-date">${formatDate(s.date)}</div></div>
+      <div class="session-tag" style="background:${c}20;color:${c}">✓</div>
+    </div>`;
+  }).join('');}
+}
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function setPhase(idx,el){currentPhase=idx;currentWorkout=0;document.querySelectorAll('.phase-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderPhase();}
+function setWorkout(idx){currentWorkout=idx;renderPhase();}
+
+function showSection(s){
+  ['workout','log','milestones'].forEach(sec=>{
+    document.getElementById(sec+'Section').classList.remove('active');
+    document.getElementById('nav'+sec.charAt(0).toUpperCase()+sec.slice(1))?.classList.remove('active');
+  });
+  document.getElementById(s+'Section').classList.add('active');
+  document.getElementById('nav'+s.charAt(0).toUpperCase()+s.slice(1)).classList.add('active');
+  document.getElementById('phaseTabs').style.display=s==='workout'?'flex':'none';
+  if(s==='log') renderLog();
+}
+
+// ── MILESTONES ────────────────────────────────────────────────────────────────
+document.getElementById('milestoneList').innerHTML=MILESTONES.map(m=>`
+  <div class="milestone-item">
+    <div class="milestone-period">${m.period}</div>
+    <div class="milestone-text">${m.text}</div>
+  </div>`).join('');
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+updateStreak();
+renderPhase();
+</script>
+
+</body>
+</html>
